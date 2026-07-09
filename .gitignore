@@ -1,0 +1,22 @@
+# 依赖
+node_modules/
+
+# 环境变量
+.env
+
+# 日志
+logs/
+*.log
+
+# PM2
+.pm2/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
