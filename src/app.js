@@ -8,7 +8,7 @@ const config = require('./config');
 const logger = require('./utils/logger');
 const { parseTargetInfo } = require('./middleware/parser');
 const { apiKeyAuth, ipWhitelist, isUrlAllowed } = require('./middleware/security');
-const { forwardRequest, pipeUpstreamResponse } = require('./services/proxy');
+const { forwardRequest, pipeUpstreamResponse, handleBinaryResponse, isBinaryContentType } = require('./services/proxy');
 
 const app = express();
 
@@ -73,8 +73,14 @@ app.all('*', methodRestrictor, async (req, res) => {
     // 3. 发起真实请求
     const upstreamResponse = await forwardRequest(targetInfo, req);
 
-    // 4. 原样返回宿主机响应
-    pipeUpstreamResponse(upstreamResponse, res, requestId, startTime);
+    // 4. 根据响应模式处理结果
+    const upstreamContentType = upstreamResponse.headers['content-type'] || '';
+
+    if (config.responseMode === 'base64' && isBinaryContentType(upstreamContentType)) {
+      handleBinaryResponse(upstreamResponse, res, requestId, startTime);
+    } else {
+      pipeUpstreamResponse(upstreamResponse, res, requestId, startTime);
+    }
   } catch (error) {
     const duration = Date.now() - startTime;
 

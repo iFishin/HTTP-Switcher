@@ -109,4 +109,71 @@ function pipeUpstreamResponse(upstreamResponse, res, requestId, startTime) {
   });
 }
 
-module.exports = { forwardRequest, pipeUpstreamResponse };
+/**
+ * 判断 Content-Type 是否为二进制类型（图片、音视频、Office 文件等）。
+ */
+const BINARY_TYPE_PATTERNS = [
+  /^image\//,
+  /^audio\//,
+  /^video\//,
+  /^application\/octet-stream/,
+  /^application\/pdf/,
+  /^application\/vnd\./,
+  /^application\/x-/,
+  /^application\/zip/,
+  /^application\/gzip/,
+  /^application\/x-rar/,
+  /^application\/x-tar/,
+];
+
+function isBinaryContentType(contentType) {
+  if (!contentType) return false;
+  const ct = contentType.toLowerCase().split(';')[0].trim();
+  return BINARY_TYPE_PATTERNS.some(p => p.test(ct));
+}
+
+/**
+ * 收集宿主机二进制响应，返回 base64 编码 + 原始类型信息。
+ *
+ * @param {object} upstreamResponse - axios 响应对象
+ * @param {object} res - Express 响应对象
+ * @param {string} requestId - 请求 ID
+ * @param {number} startTime - 开始时间戳
+ */
+function handleBinaryResponse(upstreamResponse, res, requestId, startTime) {
+  const chunks = [];
+
+  upstreamResponse.data.on('data', (chunk) => {
+    chunks.push(chunk);
+  });
+
+  upstreamResponse.data.on('end', () => {
+    const fullBuffer = Buffer.concat(chunks);
+    const base64 = fullBuffer.toString('base64');
+    const originalType = upstreamResponse.headers['content-type'] || 'application/octet-stream';
+
+    logger.info({
+      requestId,
+      status: upstreamResponse.status,
+      duration: Date.now() - startTime,
+      contentLength: fullBuffer.length,
+      contentType: originalType,
+    }, 'Binary response (base64 encoded)');
+
+    res.json({
+      file_content: base64,
+      file_encoding: 'base64',
+      file_type: originalType,
+      file_size: fullBuffer.length,
+    });
+  });
+
+  upstreamResponse.data.on('error', (err) => {
+    logger.error({ requestId, err: err.message }, 'Stream error during binary collection');
+    if (!res.headersSent) {
+      res.status(502).json({ error: 'Stream error' });
+    }
+  });
+}
+
+module.exports = { forwardRequest, pipeUpstreamResponse, handleBinaryResponse, isBinaryContentType };

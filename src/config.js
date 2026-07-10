@@ -11,7 +11,10 @@ const config = {
     .split(',')
     .map(s => s.trim().toUpperCase()),
 
-  // 请求超时（毫秒）
+  // 响应模式: passthrough | base64
+  // passthrough - 透传宿主机原始响应（默认，适用于普通 HTTP 调用）
+  // base64      - 二进制文件（图片、Office 等）返回 base64 + 原始类型信息
+  responseMode: process.env.RESPONSE_MODE || 'passthrough',
   requestTimeout: parseInt(process.env.REQUEST_TIMEOUT, 10) || 30000,
 
   // Body 大小限制

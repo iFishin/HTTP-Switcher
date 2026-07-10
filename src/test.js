@@ -307,6 +307,23 @@ const config = require('./config');
 }
 
 // =============================================================
+// isBinaryContentType
+// =============================================================
+{
+  const { isBinaryContentType } = require('./services/proxy');
+  assert.strictEqual(isBinaryContentType('image/webp'), true);
+  assert.strictEqual(isBinaryContentType('image/png'), true);
+  assert.strictEqual(isBinaryContentType('application/pdf'), true);
+  assert.strictEqual(isBinaryContentType('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'), true);
+  assert.strictEqual(isBinaryContentType('application/octet-stream'), true);
+  assert.strictEqual(isBinaryContentType('text/html'), false);
+  assert.strictEqual(isBinaryContentType('application/json'), false);
+  assert.strictEqual(isBinaryContentType(null), false);
+  assert.strictEqual(isBinaryContentType(''), false);
+  console.log('✓ isBinaryContentType');
+}
+
+// =============================================================
 // End-to-end server test — POST with body path fallback
 // =============================================================
 async function serverTest() {
