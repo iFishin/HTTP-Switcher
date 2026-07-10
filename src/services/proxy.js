@@ -73,12 +73,20 @@ async function forwardRequest(targetInfo, originalReq) {
 function pipeUpstreamResponse(upstreamResponse, res, requestId, startTime) {
   res.status(upstreamResponse.status);
 
+  const upstreamHeaders = upstreamResponse.headers || {};
+  const hadContentEncoding = !!upstreamHeaders['content-encoding'];
+
   // 保留宿主机其余原始响应头（跳过逐跳头，已由 axios 处理）
-  for (const [key, value] of Object.entries(upstreamResponse.headers)) {
+  for (const [key, value] of Object.entries(upstreamHeaders)) {
     const lower = key.toLowerCase();
-    if (!HOP_BY_HOP_RESPONSE_HEADERS.includes(lower)) {
-      res.setHeader(key, value);
+    if (HOP_BY_HOP_RESPONSE_HEADERS.includes(lower)) {
+      continue; // 跳过 transfer-encoding / content-encoding
     }
+    // 如果 axios 解压了 body，Content-Length 已经不匹配，必须去掉
+    if (hadContentEncoding && lower === 'content-length') {
+      continue;
+    }
+    res.setHeader(key, value);
   }
 
   upstreamResponse.data.pipe(res);
